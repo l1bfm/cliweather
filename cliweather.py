@@ -123,9 +123,11 @@ class WeatherProvider:
 
     def get_station_by_name(self, keyword: str):
         # returns the first exact match
+        found_stations = []
         for station in self.stations:
-            if station.name == keyword:
-                return station
+            if keyword in station.name or keyword in station.code:
+                found_stations.append(station)
+        return found_stations
 
 
 
@@ -146,23 +148,31 @@ class DWD(WeatherProvider):
     def get_stations():
         raw_data = requests.get(DWD.station_api_url)
         raw_data.encoding = 'ISO-8859-1'
+        if not raw_data.status_code == 200:
+            raise IOError
         raw_data = raw_data.text
         raw_data = raw_data.split('\r\n')[3:-1]
         raw_data = [line.split() for line in raw_data]
-        raw_data = list(filter(lambda station: station[2] == "MN", raw_data))
+        #raw_data = list(filter(lambda station: station[2] == "MN", raw_data))
+        station_code_map = {}
         for raw_station in raw_data:
             station = WeatherStation(name=raw_station[0],
                               code=raw_station[3],
                               provider=DWD(),
                               position=Position2D(raw_station[5], raw_station[4])
                               )
-            DWD.stations.append(station)
+            if not station_code_map.get(station.code):
+                DWD.stations.append(station)
+                station_code_map[station.code] = True
 
 
     @staticmethod
     def get_station_data(station) -> list:
         # DWD: only automatic stations work (MN)
-        raw_data = requests.get(DWD.fc_api_url+station.code).json()[station.code]
+        raw_data = requests.get(DWD.fc_api_url+station.code).json()
+        if not raw_data:
+            raise FileNotFoundError("Station is not supported")
+        raw_data = raw_data[station.code]
         daily = DWD.get_day_forecast(data=raw_data['days'], station=station)
         three_hourly = DWD.get_list_forecast(data=raw_data['forecast2'], station=station)
         one_hourly = DWD.get_list_forecast(data=raw_data['forecast1'], station=station)
@@ -311,15 +321,31 @@ def list_dwd_stations():
     console.print(cols)
 
 def forecast(station_name):
-    DWD.get_stations()
-    station = DWD().get_station_by_name(station_name)
-    if not station:
-        print("Station not found.")
-        return
-    forecasts = station.get_forecasts()
     console = richcon.Console()
-    console.print("Vorhersage für "+station.name+":", style="bold")
-    console.print(forecasts[0].day_rich_summary())
+    try:
+        DWD.get_stations()
+    except IOError:
+        console.print("[bold white on red]Error: Station list could not be loaded. Try again.[/]")
+        return
+    stations = DWD().get_station_by_name(station_name)
+
+    failed_stations = []
+    if not stations:
+        console.print("[bold white on red]Error: Station not found.[/]")
+        return
+    for station in stations:
+        try:
+            forecasts = station.get_forecasts()
+            console.print("Vorhersage für "+station.name+" ("+station.code+"):", style="bold")
+            console.print(forecasts[0].day_rich_summary())
+        except FileNotFoundError: # when the API returns {}
+            failed_stations.append(station)
+    if failed_stations:
+        console.print("[bold white on red]These Stations were not shown, because they are not supported:[/]")
+        #f_st_string = ""
+        #[f_st_string = f_st_string+station.name+" ("+station.code+"), " for station in failed_stations]
+        console.print(", ".join([station.name+" ("+station.code+")" for station in failed_stations]))
+
 
 def help_message():
     console = richcon.Console()

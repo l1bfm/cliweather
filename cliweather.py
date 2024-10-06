@@ -341,7 +341,7 @@ def forecast(station_name):
         except FileNotFoundError: # when the API returns {}
             failed_stations.append(station)
     if failed_stations:
-        console.print("[bold white on red]These Stations were not shown, because they are not supported:[/]")
+        console.print("[bold]These Stations were not shown, because they are not supported:[/]")
         #f_st_string = ""
         #[f_st_string = f_st_string+station.name+" ("+station.code+"), " for station in failed_stations]
         console.print(", ".join([station.name+" ("+station.code+")" for station in failed_stations]))

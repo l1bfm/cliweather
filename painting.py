@@ -8,7 +8,8 @@ class IOMonopoly:
     # Only works for single threading
     # This may be not exactly safe
 
-    self.lockable = True
+    def __init__(self):
+        self.lockable = True
 
     def lock_stdin(self):
         pass
@@ -41,7 +42,7 @@ class ColorMode(Enum):
 
 class Color:
 
-    def __init__(fg=[0,0,0], fg_mode, bg=[0,0,0], bg_mode, effects=None): # a selection can be disabled by setting to sgr and selecting 39 / 49
+    def __init__(self, fg=[0,0,0], fg_mode=ColorMode.SGR, bg=[0,0,0], bg_mode=ColorMode.SGR, effects=None): # a selection can be disabled by setting to sgr and selecting 39 / 49
         self.fg = fg
         self.bg = bg
         self.fg_mode = fg_mode
@@ -55,10 +56,10 @@ class Color:
 class Canvas:# Maybe make it a child of IOMonopoly => no other command can interfere with the canvas
 ############# important class
 
-    def __init__(width: int, height: int):
+    def __init__(self, width: int, height: int):
         self.height = height
         self.width = width
-        self.cursor_offset = _get_absolute_position()
+        self.cursor_offset = self._get_absolute_position()
         # reserve space in terminal
         for h in range(self.height-1):
             print()
@@ -81,15 +82,16 @@ class Canvas:# Maybe make it a child of IOMonopoly => no other command can inter
     @staticmethod
     def _get_absolute_position() -> (int, int):
         sys.stdout.write("\x1b[6n")
-        response=sys.stdin.read(10)
+        response=sys.stdin.read()
+        print(response)
         response= response.replace('[', ';').replace('R', '').split(';')
         return response[1], response[2]
 
         
 
     def print_in_place(string):
-        print(string)
-        print('\x1b['+str(len(string))+'D')# go to initial position
+        print(string, end="")
+        print('\x1b['+str(len(string))+'D', end="")# go to initial position
 
     def paint(string, color):
         """
@@ -102,18 +104,39 @@ class Canvas:# Maybe make it a child of IOMonopoly => no other command can inter
 
 
 class Pixelflut(Canvas):
-    # Assumes dark mode
+    """
+    Spaßklasse.
+    Assumes dark mode
+    """
 
     def set_white(x, y):
         setCursor(x, y)
-        print('#', end="")
+        print_in_place('#')
 
     def set_black(x, y):
         setCursor(x, y)
-        print(' ', end="")
+        print_in_place(' ')
 
     def set_color(x, y, color: list):
         # color is [r: int, g:int, b:int]
         setCursor(x, y)
         # TODO
+
+
+######## Testing
+
+def quadratflut():
+    canvas = Pixelflut(100, 50)
+    start = [0,0]
+    size = 1
+    while start[2]<50:
+        for w in range(size):
+            for h in range(size):
+                set_white(start[0]+w, start[1]+h)
+        start[0] += size
+        start[1] += size
+        size += 1
+
+if __name__ == "__main__":
+    quadratflut()
 

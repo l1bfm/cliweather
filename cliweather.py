@@ -338,6 +338,11 @@ def forecast(station_name):
             forecasts = station.get_forecasts()
             console.print("Vorhersage für "+station.name+" ("+station.code+"):", style="bold")
             console.print(forecasts[0].day_rich_summary())
+####            console.print("3 hours:")
+   #         console.print(forecasts[1].rich_summary())
+   #         console.print("1 hour:")
+   #         console.print(forecasts[2].rich_summary())
+
         except FileNotFoundError: # when the API returns {}
             failed_stations.append(station)
     if failed_stations:
